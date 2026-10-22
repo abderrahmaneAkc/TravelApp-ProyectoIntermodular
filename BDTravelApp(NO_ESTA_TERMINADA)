@@ -1,0 +1,328 @@
+import sqlite3
+
+conexion = sqlite3.connect("international_travel.db")
+conexion.execute("PRAGMA foreign_keys = ON")
+cursor = conexion.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS USUARIO (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    pais TEXT NOT NULL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS CIUDAD (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    pais TEXT NOT NULL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS SERVICIO_TURISTICO (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    precio REAL NOT NULL,
+    ciudad_id INTEGER NOT NULL,
+    FOREIGN KEY (ciudad_id) REFERENCES CIUDAD(id)
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS RESERVA (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    servicio_id INTEGER NOT NULL,
+    fecha TEXT NOT NULL,
+    estado TEXT NOT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES USUARIO(id),
+    FOREIGN KEY (servicio_id) REFERENCES SERVICIO_TURISTICO(id)
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS RESENA (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    servicio_id INTEGER NOT NULL,
+    puntuacion INTEGER NOT NULL,
+    comentario TEXT,
+    FOREIGN KEY (usuario_id) REFERENCES USUARIO(id),
+    FOREIGN KEY (servicio_id) REFERENCES SERVICIO_TURISTICO(id)
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS ESIM (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pais TEXT NOT NULL,
+    datos_gb INTEGER NOT NULL,
+    dias INTEGER NOT NULL,
+    precio REAL NOT NULL
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS COMPRA_ESIM (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    esim_id INTEGER NOT NULL,
+    fecha TEXT NOT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES USUARIO(id),
+    FOREIGN KEY (esim_id) REFERENCES ESIM(id)
+)
+""")
+
+conexion.commit()
+
+
+# INSERTAR USUARIOS
+cursor.execute("SELECT COUNT(*) FROM USUARIO")
+if cursor.fetchone()[0] == 0:
+    lista_usuarios = [
+        ("Carlos Garcia", "carlos@gmail.com", "España"),
+        ("Laura Martinez", "laura@gmail.com", "España"),
+        ("Ahmed Benali", "ahmed@gmail.com", "Marruecos")
+    ]
+    cursor.executemany(
+        "INSERT INTO USUARIO (nombre, email, pais) VALUES (?, ?, ?)",
+        lista_usuarios
+    )
+
+
+# INSERTAR CIUDADES
+cursor.execute("SELECT COUNT(*) FROM CIUDAD")
+if cursor.fetchone()[0] == 0:
+    lista_ciudades = [
+        ("Paris", "Francia"),
+        ("Roma", "Italia"),
+        ("Madrid", "España"),
+        ("Londres", "Reino Unido"),
+        ("Marrakech", "Marruecos")
+    ]
+    cursor.executemany(
+        "INSERT INTO CIUDAD (nombre, pais) VALUES (?, ?)",
+        lista_ciudades
+    )
+
+
+# INSERTAR SERVICIOS TURISTICOS
+cursor.execute("SELECT COUNT(*) FROM SERVICIO_TURISTICO")
+if cursor.fetchone()[0] == 0:
+    lista_servicios = [
+        ("Hotel Central", "Hotel", 85.50, 1),
+        ("Guia de Paris", "Guia", 30.00, 1),
+        ("Torre Eiffel", "Actividad", 25.00, 1),
+        ("Hotel Roma", "Hotel", 70.00, 2),
+        ("Coliseo", "Actividad", 18.00, 2),
+        ("Museo del Prado", "Actividad", 15.00, 3),
+        ("Hotel Madrid", "Hotel", 65.00, 3),
+        ("Guia de Londres", "Guia", 40.00, 4),
+        ("Jardin Majorelle", "Actividad", 12.00, 5)
+    ]
+    cursor.executemany(
+        """INSERT INTO SERVICIO_TURISTICO
+           (nombre, tipo, precio, ciudad_id) VALUES (?, ?, ?, ?)""",
+        lista_servicios
+    )
+
+
+# INSERTAR ESIM
+cursor.execute("SELECT COUNT(*) FROM ESIM")
+if cursor.fetchone()[0] == 0:
+    lista_esim = [
+        ("Francia", 5, 7, 8.99),
+        ("Francia", 10, 15, 14.99),
+        ("Italia", 5, 7, 7.99),
+        ("España", 10, 15, 9.99),
+        ("Reino Unido", 20, 30, 19.99),
+        ("Marruecos", 5, 7, 11.99),
+        ("Marruecos", 10, 15, 17.99)
+    ]
+    cursor.executemany(
+        "INSERT INTO ESIM (pais, datos_gb, dias, precio) VALUES (?, ?, ?, ?)",
+        lista_esim
+    )
+
+conexion.commit()
+
+
+#CONSULTAR CIUDADES Y SERVICIOS
+def consultar_servicios():
+    cursor.execute("""
+        SELECT SERVICIO_TURISTICO.id,
+               SERVICIO_TURISTICO.nombre,
+               SERVICIO_TURISTICO.tipo,
+               SERVICIO_TURISTICO.precio,
+               CIUDAD.nombre,
+               CIUDAD.pais
+        FROM SERVICIO_TURISTICO
+        JOIN CIUDAD
+        ON SERVICIO_TURISTICO.ciudad_id = CIUDAD.id
+    """)
+
+    servicios = cursor.fetchall()
+    print("\n--- SERVICIOS TURISTICOS ---")
+
+    for servicio in servicios:
+        print(
+            "ID:", servicio[0],
+            "|", servicio[1],
+            "|", servicio[2],
+            "|", servicio[3], "euros",
+            "|", servicio[4],
+            "-", servicio[5]
+        )
+
+
+#CONSULTAR ESIM
+def consultar_esim():
+    cursor.execute("SELECT * FROM ESIM")
+    esims = cursor.fetchall()
+
+    print("\n--- ESIM DISPONIBLES ---")
+
+    for esim in esims:
+        print(
+            "ID:", esim[0],
+            "| Pais:", esim[1],
+            "| Datos:", esim[2], "GB",
+            "| Duracion:", esim[3], "dias",
+            "| Precio:", esim[4], "euros"
+        )
+
+
+#REGISTRAR USUARIO
+def registrar_usuario():
+    nombre = input("Nombre: ")
+    email = input("Email: ")
+    pais = input("Pais: ")
+
+    try:
+        cursor.execute("""
+            INSERT INTO USUARIO (nombre, email, pais)
+            VALUES (?, ?, ?)
+        """, (nombre, email, pais))
+
+        conexion.commit()
+        print("Usuario registrado correctamente.")
+
+    except sqlite3.IntegrityError:
+        print("Error: ese email ya esta registrado.")
+
+
+#HACER UNA RESERVA
+def hacer_reserva():
+    consultar_servicios()
+
+    email = input("\nIntroduce tu email: ")
+    cursor.execute(
+        "SELECT id FROM USUARIO WHERE email = ?",
+        (email,)
+    )
+    usuario = cursor.fetchone()
+
+    if usuario is None:
+        print("Usuario no encontrado. Registrate primero.")
+        return
+
+    id_servicio = int(input("ID del servicio que quieres reservar: "))
+    fecha = input("Fecha de la reserva (AAAA-MM-DD): ")
+
+    cursor.execute(
+        "SELECT id FROM SERVICIO_TURISTICO WHERE id = ?",
+        (id_servicio,)
+    )
+
+    if cursor.fetchone() is None:
+        print("El servicio no existe.")
+        return
+
+    cursor.execute("""
+        INSERT INTO RESERVA
+        (usuario_id, servicio_id, fecha, estado)
+        VALUES (?, ?, ?, ?)
+    """, (usuario[0], id_servicio, fecha, "Pendiente"))
+
+    conexion.commit()
+    print("Reserva realizada correctamente.")
+
+
+#DEJAR UNA RESENA
+def dejar_resena():
+    consultar_servicios()
+
+    email = input("\nIntroduce tu email: ")
+    cursor.execute(
+        "SELECT id FROM USUARIO WHERE email = ?",
+        (email,)
+    )
+    usuario = cursor.fetchone()
+
+    if usuario is None:
+        print("Usuario no encontrado.")
+        return
+
+    id_servicio = int(input("ID del servicio: "))
+    puntuacion = int(input("Puntuacion del 1 al 5: "))
+
+    if puntuacion < 1 or puntuacion > 5:
+        print("La puntuacion debe estar entre 1 y 5.")
+        return
+
+    comentario = input("Escribe tu comentario: ")
+
+    cursor.execute(
+        "SELECT id FROM SERVICIO_TURISTICO WHERE id = ?",
+        (id_servicio,)
+    )
+
+    if cursor.fetchone() is None:
+        print("El servicio no existe.")
+        return
+
+    cursor.execute("""
+        INSERT INTO RESENA
+        (usuario_id, servicio_id, puntuacion, comentario)
+        VALUES (?, ?, ?, ?)
+    """, (usuario[0], id_servicio, puntuacion, comentario))
+
+    conexion.commit()
+    print("Resena guardada correctamente.")
+
+
+opcion = ""
+
+while opcion != "6":
+    print("\n==============================")
+    print("    INTERNATIONAL TRAVEL")
+    print("==============================")
+    print("1. Consultar ciudades y servicios")
+    print("2. Consultar eSIM disponibles")
+    print("3. Registrar usuario")
+    print("4. Hacer una reserva")
+    print("5. Dejar una resena")
+    print("6. Salir")
+
+    opcion = input("Elige una opcion: ")
+
+    if opcion == "1":
+        consultar_servicios()
+    elif opcion == "2":
+        consultar_esim()
+    elif opcion == "3":
+        registrar_usuario()
+    elif opcion == "4":
+        hacer_reserva()
+    elif opcion == "5":
+        dejar_resena()
+    elif opcion == "6":
+        print("Gracias por utilizar International Travel.")
+    else:
+        print("Opcion incorrecta.")
+
+conexion.close()
