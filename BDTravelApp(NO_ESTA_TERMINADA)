@@ -4,6 +4,7 @@ conexion = sqlite3.connect("international_travel.db")
 conexion.execute("PRAGMA foreign_keys = ON")
 cursor = conexion.cursor()
 
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS USUARIO (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,8 +80,6 @@ CREATE TABLE IF NOT EXISTS COMPRA_ESIM (
 
 conexion.commit()
 
-
-# INSERTAR USUARIOS
 cursor.execute("SELECT COUNT(*) FROM USUARIO")
 if cursor.fetchone()[0] == 0:
     lista_usuarios = [
@@ -88,14 +87,12 @@ if cursor.fetchone()[0] == 0:
         ("Laura Martinez", "laura@gmail.com", "España"),
         ("Ahmed Benali", "ahmed@gmail.com", "Marruecos")
     ]
-    cursor.executemany(
-        "INSERT INTO USUARIO (nombre, email, pais) VALUES (?, ?, ?)",
-        lista_usuarios
-    )
+    cursor.executemany("""INSERT INTO USUARIO (nombre, email, pais) VALUES (?, ?, ?)""", lista_usuarios)
 
 
 # INSERTAR CIUDADES
 cursor.execute("SELECT COUNT(*) FROM CIUDAD")
+
 if cursor.fetchone()[0] == 0:
     lista_ciudades = [
         ("Paris", "Francia"),
@@ -104,13 +101,10 @@ if cursor.fetchone()[0] == 0:
         ("Londres", "Reino Unido"),
         ("Marrakech", "Marruecos")
     ]
-    cursor.executemany(
-        "INSERT INTO CIUDAD (nombre, pais) VALUES (?, ?)",
-        lista_ciudades
-    )
+
+    cursor.executemany("""INSERT INTO CIUDAD (nombre, pais) VALUES (?, ?)""", lista_ciudades)
 
 
-# INSERTAR SERVICIOS TURISTICOS
 cursor.execute("SELECT COUNT(*) FROM SERVICIO_TURISTICO")
 if cursor.fetchone()[0] == 0:
     lista_servicios = [
@@ -124,14 +118,9 @@ if cursor.fetchone()[0] == 0:
         ("Guia de Londres", "Guia", 40.00, 4),
         ("Jardin Majorelle", "Actividad", 12.00, 5)
     ]
-    cursor.executemany(
-        """INSERT INTO SERVICIO_TURISTICO
-           (nombre, tipo, precio, ciudad_id) VALUES (?, ?, ?, ?)""",
-        lista_servicios
-    )
+    cursor.executemany(""" INSERT INTO SERVICIO_TURISTICO (nombre, tipo, precio, ciudad_id) VALUES (?, ?, ?, ?)""", lista_servicios)
 
 
-# INSERTAR ESIM
 cursor.execute("SELECT COUNT(*) FROM ESIM")
 if cursor.fetchone()[0] == 0:
     lista_esim = [
@@ -143,15 +132,14 @@ if cursor.fetchone()[0] == 0:
         ("Marruecos", 5, 7, 11.99),
         ("Marruecos", 10, 15, 17.99)
     ]
-    cursor.executemany(
-        "INSERT INTO ESIM (pais, datos_gb, dias, precio) VALUES (?, ?, ?, ?)",
-        lista_esim
-    )
 
+    cursor.executemany("""INSERT INTO ESIM (pais, datos_gb, dias, precio) VALUES (?, ?, ?, ?)""", lista_esim)
 conexion.commit()
 
 
-#CONSULTAR CIUDADES Y SERVICIOS
+
+# 1. CONSULTAR CIUDADES Y SERVICIOS
+
 def consultar_servicios():
     cursor.execute("""
         SELECT SERVICIO_TURISTICO.id,
@@ -166,6 +154,7 @@ def consultar_servicios():
     """)
 
     servicios = cursor.fetchall()
+
     print("\n--- SERVICIOS TURISTICOS ---")
 
     for servicio in servicios:
@@ -179,7 +168,8 @@ def consultar_servicios():
         )
 
 
-#CONSULTAR ESIM
+# 2. CONSULTAR ESIM
+
 def consultar_esim():
     cursor.execute("SELECT * FROM ESIM")
     esims = cursor.fetchall()
@@ -196,7 +186,8 @@ def consultar_esim():
         )
 
 
-#REGISTRAR USUARIO
+# 3. REGISTRAR USUARIO
+
 def registrar_usuario():
     nombre = input("Nombre: ")
     email = input("Email: ")
@@ -215,11 +206,13 @@ def registrar_usuario():
         print("Error: ese email ya esta registrado.")
 
 
-#HACER UNA RESERVA
+# 4. HACER UNA RESERVA
+
 def hacer_reserva():
     consultar_servicios()
 
     email = input("\nIntroduce tu email: ")
+
     cursor.execute(
         "SELECT id FROM USUARIO WHERE email = ?",
         (email,)
@@ -252,11 +245,13 @@ def hacer_reserva():
     print("Reserva realizada correctamente.")
 
 
-#DEJAR UNA RESENA
+# 5. DEJAR UNA RESENA
+
 def dejar_resena():
     consultar_servicios()
 
     email = input("\nIntroduce tu email: ")
+
     cursor.execute(
         "SELECT id FROM USUARIO WHERE email = ?",
         (email,)
@@ -276,10 +271,9 @@ def dejar_resena():
 
     comentario = input("Escribe tu comentario: ")
 
-    cursor.execute(
-        "SELECT id FROM SERVICIO_TURISTICO WHERE id = ?",
-        (id_servicio,)
-    )
+    cursor.execute("""
+        SELECT id FROM SERVICIO_TURISTICO WHERE id = ?
+    """, (id_servicio,))
 
     if cursor.fetchone() is None:
         print("El servicio no existe.")
@@ -295,9 +289,115 @@ def dejar_resena():
     print("Resena guardada correctamente.")
 
 
+# 6. CONSULTAR RESERVAS
+
+def consultar_reservas():
+    email = input("Introduce tu email: ")
+
+    cursor.execute("""
+        SELECT RESERVA.id,
+               SERVICIO_TURISTICO.nombre,
+               RESERVA.fecha,
+               RESERVA.estado
+        FROM RESERVA
+        JOIN USUARIO ON RESERVA.usuario_id = USUARIO.id
+        JOIN SERVICIO_TURISTICO
+        ON RESERVA.servicio_id = SERVICIO_TURISTICO.id
+        WHERE USUARIO.email = ?
+    """, (email,))
+
+    reservas = cursor.fetchall()
+
+    if len(reservas) == 0:
+        print("No tienes reservas.")
+    else:
+        print("\n--- TUS RESERVAS ---")
+
+        for reserva in reservas:
+            print(
+                "ID:", reserva[0],
+                "| Servicio:", reserva[1],
+                "| Fecha:", reserva[2],
+                "| Estado:", reserva[3]
+            )
+
+
+# 7. COMPRAR ESIM
+
+def comprar_esim():
+    consultar_esim()
+
+    email = input("\nIntroduce tu email: ")
+
+    cursor.execute(
+        "SELECT id FROM USUARIO WHERE email = ?",
+        (email,)
+    )
+    usuario = cursor.fetchone()
+
+    if usuario is None:
+        print("Usuario no encontrado. Registrate primero.")
+        return
+
+    id_esim = int(input("ID de la eSIM que quieres comprar: "))
+
+    cursor.execute(
+        "SELECT id FROM ESIM WHERE id = ?",
+        (id_esim,)
+    )
+
+    if cursor.fetchone() is None:
+        print("La eSIM no existe.")
+        return
+
+    fecha = input("Fecha de compra (AAAA-MM-DD): ")
+
+    cursor.execute("""
+        INSERT INTO COMPRA_ESIM (usuario_id, esim_id, fecha)
+        VALUES (?, ?, ?)
+    """, (usuario[0], id_esim, fecha))
+
+    conexion.commit()
+    print("Compra de eSIM registrada correctamente.")
+
+
+# 8. CONSULTAR COMPRAS DE ESIM
+
+def consultar_compras():
+    email = input("Introduce tu email: ")
+
+    cursor.execute("""
+        SELECT ESIM.pais,
+               ESIM.datos_gb,
+               ESIM.dias,
+               ESIM.precio,
+               COMPRA_ESIM.fecha
+        FROM COMPRA_ESIM
+        JOIN USUARIO ON COMPRA_ESIM.usuario_id = USUARIO.id
+        JOIN ESIM ON COMPRA_ESIM.esim_id = ESIM.id
+        WHERE USUARIO.email = ?
+    """, (email,))
+
+    compras = cursor.fetchall()
+
+    if len(compras) == 0:
+        print("No tienes compras de eSIM.")
+    else:
+        print("\n--- TUS COMPRAS DE ESIM ---")
+
+        for compra in compras:
+            print(
+                "Pais:", compra[0],
+                "| Datos:", compra[1], "GB",
+                "| Dias:", compra[2],
+                "| Precio:", compra[3], "euros",
+                "| Fecha:", compra[4]
+            )
+
+
 opcion = ""
 
-while opcion != "6":
+while opcion != "9":
     print("\n==============================")
     print("    INTERNATIONAL TRAVEL")
     print("==============================")
@@ -306,7 +406,10 @@ while opcion != "6":
     print("3. Registrar usuario")
     print("4. Hacer una reserva")
     print("5. Dejar una resena")
-    print("6. Salir")
+    print("6. Consultar mis reservas")
+    print("7. Comprar una eSIM")
+    print("8. Consultar mis compras de eSIM")
+    print("9. Salir")
 
     opcion = input("Elige una opcion: ")
 
@@ -321,6 +424,12 @@ while opcion != "6":
     elif opcion == "5":
         dejar_resena()
     elif opcion == "6":
+        consultar_reservas()
+    elif opcion == "7":
+        comprar_esim()
+    elif opcion == "8":
+        consultar_compras()
+    elif opcion == "9":
         print("Gracias por utilizar International Travel.")
     else:
         print("Opcion incorrecta.")
